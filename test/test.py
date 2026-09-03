@@ -7,15 +7,18 @@ from cocotb.triggers import ClockCycles, Timer
 
 
 async def step_and_settle(dut):
-    """Advance one clock cycle, then let the DUT's NBA updates settle before
+    """Advance one clock cycle, then let the DUT's updates settle before
     reading. cocotb's RisingEdge/ClockCycles resumes at the exact instant of
     the clock edge, with no guarantee it runs after the DUT's own
-    posedge-triggered always block has applied its update for that edge —
-    reading immediately can see a stale, one-cycle-old value. A 1ns delay
-    after the edge (not after driving inputs) forces the read into a later,
-    safely-settled time step."""
+    posedge-triggered always block (RTL) or standard-cell propagation delays
+    (gate-level netlist, built with UNIT_DELAY=#1 per cell) have settled for
+    that edge — reading immediately can see a stale, one-cycle-old value. A
+    settle delay after the edge (not after driving inputs) forces the read
+    into a later time step. 10ns (10% of the 100ns clock period) covers a
+    multi-gate propagation chain in gate-level sim while leaving 90ns of
+    margin before the next edge."""
     await ClockCycles(dut.clk, 1)
-    await Timer(1, unit="ns")
+    await Timer(10, unit="ns")
 
 
 @cocotb.test()
