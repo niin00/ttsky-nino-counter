@@ -9,12 +9,17 @@ You can also include images in this folder and reference them in the markdown. E
 
 ## How it works
 
-Explain how your project works
+An 8-bit synchronous up counter. On each rising edge of `clk`, if `rst_n` is low the counter
+resets to 0; otherwise, if `ui_in[0]` is high the counter increments by 1 (wrapping from 255
+back to 0), and if `ui_in[0]` is low the counter holds its current value. The count is driven
+out continuously on `uo_out`. All other input bits and the bidirectional IOs are unused.
 
 ## How to test
 
-Explain how to use your project
+Hold `rst_n` low for a few clock cycles to reset the counter to 0, then release it. Drive
+`ui_in[0]` high to count up on every clock cycle, or low to pause the counter. Observe the
+count on `uo_out`.
 
 ## External hardware
 
-List external hardware used in your project (e.g. PMOD, LED display, etc), if any
+None.
