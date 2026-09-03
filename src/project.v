@@ -19,6 +19,9 @@ module tt_um_nino_counter (
   reg [7:0] count;
 
   always @(posedge clk) begin
+    // DEBUG (temporary, will be removed): ground-truth view from inside the
+    // RTL process itself, independent of any cocotb VPI read/write timing.
+    $display("RTL DEBUG: t=%0t rst_n=%b ui_in0=%b count=%0d", $time, rst_n, ui_in[0], count);
     if (!rst_n)
       count <= 8'd0;
     else if (ui_in[0])
