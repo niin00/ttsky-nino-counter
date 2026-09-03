@@ -3,7 +3,19 @@
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles
+from cocotb.triggers import ClockCycles, Timer
+
+
+async def step_and_settle(dut):
+    """Advance one clock cycle, then let the DUT's NBA updates settle before
+    reading. cocotb's RisingEdge/ClockCycles resumes at the exact instant of
+    the clock edge, with no guarantee it runs after the DUT's own
+    posedge-triggered always block has applied its update for that edge —
+    reading immediately can see a stale, one-cycle-old value. A 1ns delay
+    after the edge (not after driving inputs) forces the read into a later,
+    safely-settled time step."""
+    await ClockCycles(dut.clk, 1)
+    await Timer(1, unit="ns")
 
 
 @cocotb.test()
@@ -22,7 +34,7 @@ async def test_counter(dut):
     dut.rst_n.value = 0
     await ClockCycles(dut.clk, 10)
     dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 1)
+    await step_and_settle(dut)
 
     dut._log.info("Counter is zero after reset")
     assert dut.uo_out.value == 0
@@ -31,18 +43,19 @@ async def test_counter(dut):
     dut.ui_in.value = 1  # ui_in[0] = 1, all other input bits 0
     expected = 0
     for _ in range(20):
-        await ClockCycles(dut.clk, 1)
+        await step_and_settle(dut)
         expected = (expected + 1) & 0xFF
         assert dut.uo_out.value == expected
 
     dut._log.info("Counter holds while ui_in[0] is low")
     dut.ui_in.value = 0
     for _ in range(5):
-        await ClockCycles(dut.clk, 1)
+        await step_and_settle(dut)
         assert dut.uo_out.value == expected
 
     dut._log.info("Counter wraps from 255 to 0")
     dut.ui_in.value = 1
     remaining = 256 - expected
-    await ClockCycles(dut.clk, remaining)
+    for _ in range(remaining):
+        await step_and_settle(dut)
     assert dut.uo_out.value == 0
