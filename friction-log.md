@@ -3,6 +3,26 @@
 Repo: https://github.com/niin00/ttsky-nino-counter
 Started: 2026-09-03
 
+## Result
+
+All four CI workflows (`test`, `docs`, `gds`, `fpga`) are green as of commit `2cd53b3`.
+Final green run IDs: test=33741912617, docs=33741912533, gds=33741912638 (all 4 sub-jobs:
+gds/precheck/gl_test/viewer), fpga=33742536349 (manually dispatched, since fpga.yaml's
+push trigger is disabled by the template — see row below).
+
+Headline findings, most valuable first:
+1. The template's own `test.py` idiom (`await ClockCycles(...); assert dut.port.value == x`)
+   has no settle margin after the clock edge and is silently unsafe for any sequential design —
+   it only "works" for the placeholder because that design is purely combinational.
+2. `gh api repos/.../pages` must be enabled manually (Settings → Pages → Source: GitHub Actions)
+   on every new repo from this template, or the `gds` workflow's `viewer` sub-job fails forever.
+   Not mentioned in the template's setup docs.
+3. `fpga.yaml` ships with `branches: none`, so it silently never runs on push — easy to mistake
+   for 3-of-4 workflows being the norm.
+4. Two of my own root-cause theories during debugging were wrong and one (the `` `timescale ``
+   theory) was actively misleading despite looking well-evidenced — see rows below for the
+   full reasoning trail and how each was falsified.
+
 Format: | what happened | AI handled it / AI got it subtly wrong / needed human judgment | would another newcomer hit this? |
 
 | what happened | classification | newcomer-prone? |
@@ -32,7 +52,7 @@ Format: | what happened | AI handled it / AI got it subtly wrong / needed human 
 | **`gds` workflow's `viewer` sub-job fails on a brand-new repo with `HttpError: Not Found ... Ensure GitHub Pages has been enabled`.** Confirmed via `gh api repos/.../pages` returning 404 (`has_pages: false`) — GitHub Pages is simply not enabled on a freshly-created repo from this template, and nothing in the template or its workflow files enables or checks for it. The `gds.yaml` workflow's own error message does include a helpful link (`https://tinytapeout.com/faq/#my-github-action-is-failing-on-the-pages-part`), so this is a case where the template anticipated the problem, but the fix still requires a manual, one-time repo-settings action (Settings → Pages → Source: GitHub Actions) that isn't part of the template's own setup instructions/README. | needed human judgment — this is a repo-visibility setting change (makes a new public URL live), stopping to confirm with the user before enabling it via `gh api` rather than doing it silently | **Yes, certainly** — this will hit every single person who creates a new repo from this template and expects `gh run watch` (or the GitHub UI) to show a clean sweep of green checkmarks: the `gds` workflow will not go green until Pages is manually enabled, and the template's README doesn't mention this as a setup step. |
 | **The gate-level (`gl_test`) sub-job of `gds` failed with the exact same `assert 0 == 1` symptom as the RTL-level `test` workflow**, confirming the cocotb read-timing bug (see above) applies identically when the same `test.py`/`tb.v` run against the synthesized gate-level netlist, not just the RTL. This is expected/consistent, not a new bug — same root cause, same fix, no netlist-specific issue found. | AI handled it (recognized as the same already-diagnosed bug, not a new investigation) | Yes — reinforces that the cocotb timing gap affects gate-level sign-off too, not just the RTL smoke test, so it's not something you can get away with only fixing "for RTL." |
 
-| **The `test.py`/`tb.v` fix (1ns settle delay) that made the RTL-level `test` workflow pass was NOT enough for the gate-level `gl_test` sub-job of `gds` — same symptom, shifted by exactly the added 1ns (failure now at t=1101ns instead of t=1100ns), proving the fix mechanism is right but the margin is too small for gate-level sim.** Root cause of the extra margin need: `test/Makefile`'s `GATES=yes` branch defines `COMPILE_ARGS += -DUNIT_DELAY=\#1`, meaning every synthesized standard cell in the netlist has a real `#1` propagation delay — a chain of a few gates (flop + buffers + any glue logic) can need several time-units to settle, whereas the zero-delay RTL simulation settles instantly regardless of settle-window size. **Uncertain/inferred, not proven with a local gate-level run** (I don't have the sky130 PDK + hardened netlist locally to reproduce `GATES=yes` outside CI) — flagging this explicitly as a guess based on reading the Makefile, not a locally-verified fix like the earlier RTL bug. Increasing the settle delay from 1ns to 10ns (10% of the 100ns clock period, i.e. comfortably larger than a plausible few-gate propagation chain while leaving 90ns of margin before the next edge) as a more robust value for both RTL and gate-level runs. | **flagged as an explicit guess** — the mechanism (cocotb resuming before NBA/cell-delay settle) is proven, but the specific 10ns margin number is reasoned-but-unverified since gate-level sim isn't reproducible locally without the PDK | Yes — anyone whose RTL-level fix for this exact issue uses a bare `Timer(1, unit="ns")` will likely see it work for `test` but still fail for `gds`'s `gl_test`, with no obvious hint that the required margin differs between RTL and gate-level simulation. |
+| **The `test.py`/`tb.v` fix (1ns settle delay) that made the RTL-level `test` workflow pass was NOT enough for the gate-level `gl_test` sub-job of `gds` — same symptom, shifted by exactly the added 1ns (failure now at t=1101ns instead of t=1100ns), proving the fix mechanism is right but the margin is too small for gate-level sim.** Root cause of the extra margin need: `test/Makefile`'s `GATES=yes` branch defines `COMPILE_ARGS += -DUNIT_DELAY=\#1`, meaning every synthesized standard cell in the netlist has a real `#1` propagation delay — a chain of a few gates (flop + buffers + any glue logic) can need several time-units to settle, whereas the zero-delay RTL simulation settles instantly regardless of settle-window size. **Was an explicit, flagged guess at push time** (no local PDK to reproduce `GATES=yes`) — **since confirmed: the 10ns margin made `gl_test` pass in CI** (run 33741912638, gl_test job 100606791962), so the mechanism and the specific number both held up on the first try. Increasing the settle delay from 1ns to 10ns (10% of the 100ns clock period, comfortably larger than a plausible few-gate propagation chain while leaving 90ns of margin before the next edge). | **flagged as an explicit guess, confirmed correct by CI** — the mechanism (cocotb resuming before NBA/cell-delay settle) was already proven; the specific 10ns number was reasoned-but-unverified when chosen and is now confirmed working | Yes — anyone whose RTL-level fix for this exact issue uses a bare `Timer(1, unit="ns")` will likely see it work for `test` but still fail for `gds`'s `gl_test`, with no obvious hint that the required margin differs between RTL and gate-level simulation. |
 
 ## Notes on docs / guesses (running)
 
