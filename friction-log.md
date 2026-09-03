@@ -98,3 +98,134 @@ If this comes in anywhere near the counter's cost despite reusing the hard-won t
 ## Notes on docs / guesses (running)
 
 (populated as encountered)
+
+## Retroactive reclassification — 2026-09-03
+
+Applying `methodology.md` (frozen this same day, before the Verus arm
+begins) to friction already recorded above. **Per Rule 1, the raw hours
+already recorded for the counter task are not changed by this section** —
+the counter remains recorded at the ~3 hours documented in the rows above
+(spanning both sessions). This section only adds evidentiary weight and
+durable/self-closing tags on top of that unchanged number. No existing row
+above this section has been edited or deleted.
+
+### Rule 3 prior-art search log
+
+**Search 1 — cocotb read/write scheduling mechanism**
+- Sources searched: cocotb's official docs (`docs.cocotb.org`, specifically
+  `timing_model.html` and `triggers.html` across several versions), cocotb's
+  GitHub (`cocotb/cocotb` Discussions), general web search.
+- Search terms used: "cocotb RisingEdge ClockCycles read stale value before
+  NBA update ReadOnly"; "cocotb documentation common pitfalls sequential
+  circuit testbench clock edge synchronization tutorial counter"; "cocotb
+  'common pitfalls' OR 'gotchas' OR FAQ counter example RisingEdge stale
+  flip-flop"; plus direct fetches of `docs.cocotb.org/en/stable/timing_model.html`
+  and `github.com/cocotb/cocotb/discussions/3282` and `.../discussions/3877`.
+- Time spent: **not separately timed at the point of search** — conducted
+  during Session 2, before the 12:16:10 CEST Task A start logged above, as
+  prep for Task B. This is itself a gap against Rule 3 as now written:
+  flagging it rather than concealing it. Going forward, time spent must be
+  logged as the search happens, not reconstructed after the fact.
+- Timestamp: Session 2, 2026-09-03, before 12:16 CEST (exact start not
+  separately recorded at the time).
+- Outcome: **prior art found.** `docs.cocotb.org/en/stable/timing_model.html`
+  states, verbatim: "Using a flip-flop for example, after an `await
+  RisingEdge(dut.clk)`, `dut.clk` will be `1`, but the output of the
+  flip-flop will remain the previous value" — the identical mechanism and
+  illustrative example independently arrived at during the counter's
+  debugging (see rows 47-48 above). Corroborated by cocotb GitHub
+  Discussions #3877 and #3282, both predating this project.
+
+**Search 2 — Tiny Tapeout template cross-referencing that guidance**
+- Sources searched: `tinytapeout.com/hdl/testing/` (TT's own testing guide),
+  the `ttihp-verilog-template` and `ttsky-verilog-template` repos' `test/test.py`
+  and README files, TinyTapeout's GitHub org via `gh search issues` /
+  `gh search prs`.
+- Search terms used: "ClockCycles stale", "ReadOnly", "one cycle late",
+  "clock edge", "stale" (scoped with `--repo` and `org:TinyTapeout`), plus
+  directly reading the linked testing-guide page and the sibling template's
+  `test.py`.
+- Time spent: not separately timed (same caveat as Search 1).
+- Timestamp: Session 2, 2026-09-03, before 12:16 CEST.
+- Outcome: **prior art not found.** No TinyTapeout issue, PR, discussion, or
+  docs page connects cocotb's documented timing model to TT's own template
+  `test.py`. TT's testing guide's mention of "a delay... in-between setting
+  the input, and checking the output" refers to the one-cycle `ClockCycles`
+  wait itself, not a settle-margin fix — consistent with the fact that the
+  design it's demonstrated on is combinational and never needed one.
+
+### Reclassification
+
+1. **Time spent on the cocotb read/write scheduling mechanism itself**
+   (rows 40, 42, 44, 46, 47, 48, 49, 50, 53, 55) — prior art found, verbatim,
+   with an identical illustrative example. Per Rule 1, evidentiary weight
+   toward the "unowned seam" thesis is revised down. Reclassified as
+   **onboarding/inexperience**: the debugging cost of not having read
+   cocotb's own timing-model documentation before empirically rediscovering
+   it. This bucket did not survive the prior-art check, so per Rule 2 it
+   does not receive a durable/self-closing tag — it exits the "real
+   problem" column. **Seam weight: low.**
+
+2. **Time and friction caused by Tiny Tapeout's canonical template not
+   cross-referencing that existing cocotb guidance** — prior art not found;
+   this friction survives the check. Classification: **self-closing**
+   (a missing-documentation gap — a maintainer would plausibly add a
+   comment or link once flagged; nothing about it is structural to how TT's
+   build/test system works). Retains observational weight (it is real and
+   reproducible — any newcomer following the template literally hits it),
+   with **near-zero seam weight** per Rule 2's definition of self-closing.
+
+3. **The two wrong root-cause theories** (the write-scheduling-race guess,
+   row 40, and the `` `timescale `` mismatch guess, rows 44/46) — these are
+   evidence about newcomer/AI debugging behavior under uncertainty: how
+   plausible a wrong theory can sound, and how easy it is to mistake a
+   presentation artifact (raw `%0t` units vs. cocotb's reformatted ns) for a
+   real signal. They are **not** evidence that the underlying technical
+   problem is an unowned seam in cocotb or Tiny Tapeout — that
+   determination rests entirely on the Rule 3 searches above, which
+   resolved bucket 1 (found) and bucket 2 (not found) independently of how
+   many wrong guesses preceded the correct one. Recording this explicitly
+   so the distinction isn't lost: two wrong guesses feels like "a hard,
+   unowned problem" from the inside, but the search shows the problem was
+   well-owned (by cocotb's own docs) the whole time — the difficulty was in
+   finding the documentation, not in the absence of an answer.
+
+**The counter's raw hours remain ~3 hours, unchanged, per Rule 1.** Only the
+evidentiary weight and (for bucket 2) the durable/self-closing tag are new.
+
+### Durable/self-closing tags — PWM task entries
+
+Applying Rule 2 to the Session 2 / Task A entries recorded above:
+
+- **Row 61 (the prior-art research finding)** is the Rule 3 search logged
+  above, not a separate friction item — no independent tag needed.
+- **`step_and_settle()` reuse costing zero debugging time** (rows 86-96) —
+  not new friction; it is the observed consequence of bucket 1 above
+  already being resolved. It does not get its own prior-art check or
+  durable/self-closing tag — it is downstream confirmation of bucket 1's
+  reclassification, not an independent data point. Seam weight: low (same
+  as bucket 1, same mechanism).
+- **Self-caught free-running-counter coincidental-pass risk** (row 83) —
+  boundary case, flagged rather than force-fit: this is a
+  hardware-verification methodology risk (a settle-delay read pattern
+  interacting with a free-running counter to produce a coincidentally
+  passing weak assertion), not a claim against any specific tool or
+  template. Rule 2's maintainer-centric definition does not clearly apply,
+  since there is no upstream party who could "fix" a test author's own
+  reasoning process. Tagged **not applicable** rather than forced into
+  durable/self-closing. Seam weight: none.
+- **Mutation testing surfacing 2 test-coverage gaps** (row 84) — same
+  boundary-case reasoning: evidence about verification methodology (a
+  passing test suite is not proof of a correct design), not a claim about
+  Tiny Tapeout or cocotb. Tagged **not applicable**. Seam weight: none.
+
+### Summary table
+
+| task | raw hours | prior art found? | durable / self-closing | seam weight |
+|---|---|---|---|---|
+| Counter — cocotb read/write scheduling mechanism | ~3h (bundled in the task total; not separately timed within it) | Yes | N/A — did not survive prior-art check (Rule 2) | low |
+| Counter — TT template not cross-referencing cocotb's guidance | bundled in same ~3h; not separately timed | No | self-closing | near-zero |
+| Counter — two wrong root-cause theories | bundled in same ~3h; not separately timed | N/A — evidentiary claim about process, not a technical prior-art question | N/A | none toward seam thesis (retains full weight as evidence of newcomer/AI error modes) |
+| PWM — `step_and_settle()` reuse (zero debugging cost) | 0h incremental (within the ~16 min task total recorded above) | same as counter/cocotb row (already resolved) | N/A — confirms existing classification, not new friction | low |
+| PWM — self-caught coincidental-pass risk in test design | ~0h (no delay incurred) | N/A — not an ecosystem/tool claim | not applicable (boundary case, see above) | none |
+| PWM — mutation testing surfaced 2 test-coverage gaps | ~3 min | N/A — not an ecosystem/tool claim | not applicable (boundary case, see above) | none |
