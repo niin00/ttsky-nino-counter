@@ -33,12 +33,6 @@ async def test_counter(dut):
     for _ in range(20):
         await ClockCycles(dut.clk, 1)
         expected = (expected + 1) & 0xFF
-        # DEBUG (temporary, will be removed): compare uo_out against the
-        # internal register directly to see whether count itself is stuck
-        # or whether uo_out just isn't reflecting it.
-        dut._log.info(
-            f"DEBUG count={int(dut.user_project.count.value)} uo_out={int(dut.uo_out.value)} rst_n={int(dut.rst_n.value)} ui_in={int(dut.ui_in.value)}"
-        )
         assert dut.uo_out.value == expected
 
     dut._log.info("Counter holds while ui_in[0] is low")
