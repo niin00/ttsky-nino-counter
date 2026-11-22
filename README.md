@@ -23,9 +23,9 @@ The mechanism is documented by cocotb, not discovered here: its [timing model](h
 
 ## What AI got wrong
 
-Before the real cause was found, the AI assistant gave several confident, mechanism-specific root causes that were wrong: a [write-scheduling race](friction-log.md#L40), a [settle delay on the write side](friction-log.md#L42), and a [`timescale` mismatch](friction-log.md#L44) backed by a misread `%0t` print that I [retracted](friction-log.md#L46). The [actual cause](friction-log.md#L47) is the read-after-edge staleness above, and a [correction row](friction-log.md#correction--2026-11-22-final-root-cause-supersedes-earlier-rows) marks the earlier explanations as superseded. Also, rereading cocotb's docs first would have saved most of that time ([row](friction-log.md#L61)).
+Before the real cause was found, Claude Code gave several confident, mechanism-specific root causes that were wrong: a [write-scheduling race](friction-log.md?plain=1#L40), a [settle delay on the write side](friction-log.md?plain=1#L42), and a [`timescale` mismatch](friction-log.md?plain=1#L44) backed by a misread `%0t` print that I [retracted](friction-log.md?plain=1#L46). The [actual cause](friction-log.md?plain=1#L47) is the read-after-edge staleness above, and a [correction row](friction-log.md#correction--2026-11-22-final-root-cause-supersedes-earlier-rows) marks the earlier explanations as superseded. Also, rereading cocotb's docs first would have saved most of that time ([row](friction-log.md?plain=1#L61)).
 
-On the PWM, deliberately mutating the RTL [exposed two real gaps](friction-log.md#L84) in a test suite that looked thorough: edge- vs level-triggered latching was indistinguishable under the original stimulus, and the reset-time seeding of the edge detector was never exercised. Both are now covered.
+On the PWM, deliberately mutating the RTL [exposed two real gaps](friction-log.md?plain=1#L84) in a test suite that looked thorough: edge- vs level-triggered latching was indistinguishable under the original stimulus, and the reset-time seeding of the edge detector was never exercised. Both are now covered.
 
 ## Smaller template gaps
 
