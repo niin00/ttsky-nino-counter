@@ -1,42 +1,40 @@
 ![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg) ![](../../workflows/fpga/badge.svg)
 
-# Tiny Tapeout Verilog Project Template
+# ttsky-nino-counter
 
-- [Read the documentation for project](docs/info.md)
+My first chip designs on [Tiny Tapeout](https://tinytapeout.com) (SKY130), plus a log of where the template and AI coding tools went wrong.
 
-## What is Tiny Tapeout?
+<!-- TODO: shuttle status -->
 
-Tiny Tapeout is an educational project that aims to make it easier and cheaper than ever to get your digital and analog designs manufactured on a real chip.
+The hardware is small. The useful part is [`friction-log.md`](friction-log.md) and [`upstream-draft.md`](upstream-draft.md). The repo was one arm of a two-week experiment looking for recurring tapeout problems that tooling and AI don't resolve.
 
-To learn more and get started, visit https://tinytapeout.com.
+## What's here
 
-## Set up your Verilog project
+- **`tt_um_nino_counter`** (first design, commit `f919b73`): an 8-bit synchronous up-counter with an enable on `ui_in[0]` and an active-low synchronous reset. It's still in git history.
+- **`tt_um_nino_pwm`** (current `info.yaml` and `src/`): an 8-bit PWM generator. A free-running period counter is compared against a duty value latched from `ui_in` on a rising edge of `uio_in[0]`. `duty == 0xFF` is special-cased to exactly 100%. Details are in the [datasheet](docs/info.md).
 
-1. Add your Verilog files to the `src` folder.
-2. Edit the [info.yaml](info.yaml) and update information about your project, paying special attention to the `source_files` and `top_module` properties. If you are upgrading an existing Tiny Tapeout project, check out our [online info.yaml migration tool](https://tinytapeout.github.io/tt-yaml-upgrade-tool/).
-3. Edit [docs/info.md](docs/info.md) and add a description of your project.
-4. Adapt the testbench to your design. See [test/README.md](test/README.md) for more information.
+The repo is still named "counter" because the PWM design replaced the counter in place (commit `5b72d28`). Its testbench checks every cycle against a Python model of the RTL.
 
-The GitHub action will automatically build the ASIC files using [LibreLane](https://www.zerotoasiccourse.com/terminology/librelane/).
+## The finding
 
-## Enable GitHub actions to build the results page
+The template's example `test/test.py` sets inputs, awaits `ClockCycles(...)`, then asserts on outputs immediately. That only works because the placeholder design (`uo_out = ui_in + uio_in`) is combinational. For any sequential design the read returns the previous cycle's value, and the failure (`assert 0 == 1`) looks exactly like an RTL bug. My counter failed this way, and so did the gate-level `gl_test` job.
 
-- [Enabling GitHub Pages](https://tinytapeout.com/faq/#my-github-action-is-failing-on-the-pages-part)
+The mechanism is documented by cocotb, not discovered here: its [timing model](https://docs.cocotb.org/en/stable/timing_model.html) uses the same flip-flop example, and discussions [#3877](https://github.com/cocotb/cocotb/discussions/3877) and [#3282](https://github.com/cocotb/cocotb/discussions/3282) cover it. The gap is that the Tiny Tapeout template ships the unsafe pattern with no pointer to that documentation. I found no existing TT issue, PR or docs page connecting the two (search log in the friction log). I did not file anything upstream; [`upstream-draft.md`](upstream-draft.md) has a minimal reproducer and two fixes (a settle delay after the edge, or `ReadOnly()`).
 
-## Resources
+## What AI got wrong
 
-- [FAQ](https://tinytapeout.com/faq/)
-- [Digital design lessons](https://tinytapeout.com/digital_design/)
-- [Learn how semiconductors work](https://tinytapeout.com/siliwiz/)
-- [Join the community](https://tinytapeout.com/discord)
-- [Build your design locally](https://www.tinytapeout.com/guides/local-hardening/)
+Before the real cause was found, the AI assistant gave several confident, mechanism-specific root causes that were wrong: a [write-scheduling race](friction-log.md#L40), a [settle delay on the write side](friction-log.md#L42), and a [`timescale` mismatch](friction-log.md#L44) backed by a misread `%0t` print that I [retracted](friction-log.md#L46). The [actual cause](friction-log.md#L47) is the read-after-edge staleness above, and a [correction row](friction-log.md#correction--2026-11-22-final-root-cause-supersedes-earlier-rows) marks the earlier explanations as superseded. Also, rereading cocotb's docs first would have saved most of that time ([row](friction-log.md#L61)).
 
-## What next?
+On the PWM, deliberately mutating the RTL [exposed two real gaps](friction-log.md#L84) in a test suite that looked thorough: edge- vs level-triggered latching was indistinguishable under the original stimulus, and the reset-time seeding of the edge detector was never exercised. Both are now covered.
 
-- [Submit your design to the next shuttle](https://app.tinytapeout.com/).
-- Edit [this README](README.md) and explain your design, how it works, and how to test it.
-- Share your project on your social network of choice:
-  - LinkedIn [#tinytapeout](https://www.linkedin.com/search/results/content/?keywords=%23tinytapeout) [@TinyTapeout](https://www.linkedin.com/company/100708654/)
-  - Mastodon [#tinytapeout](https://chaos.social/tags/tinytapeout) [@matthewvenn](https://chaos.social/@matthewvenn)
-  - X (formerly Twitter) [#tinytapeout](https://twitter.com/hashtag/tinytapeout) [@tinytapeout](https://twitter.com/tinytapeout)
-  - Bluesky [@tinytapeout.com](https://bsky.app/profile/tinytapeout.com)
+## Smaller template gaps
+
+- GitHub Pages has to be enabled by hand (Settings → Pages → Source: GitHub Actions), or the `gds` workflow's `viewer` job fails. The template links an FAQ entry but doesn't list it as a setup step.
+- `fpga.yaml` ships with `branches: none`, so it never runs on push. It only runs via `workflow_dispatch`.
+
+## Links
+
+- [friction-log.md](friction-log.md): append-only log of what went wrong, with a classification per row
+- [upstream-draft.md](upstream-draft.md): unfiled write-up of the template gap
+- [docs/info.md](docs/info.md): datasheet for the PWM design
+- [GDS viewer / Pages site](https://niin00.github.io/ttsky-nino-counter/)
